@@ -2,143 +2,52 @@
 import Layout from "../layouts/Layout.astro";
 ---
 
-<Layout title="mesoHungry - Restaurants Near You">
-  <header>
-    <nav>
-      <div class="logo">mesoHungry</div>
-      <ul>
-        <li><a href="#features">Features</a></li>
-        <li><a href="#how-it-works">How It Works</a></li>
-        <li><a href="#download">Download</a></li>
-      </ul>
-    </nav>
-  </header>
-
-  <section class="hero">
+<Layout title="mesoHungry - Find Food Fast">
+  <main>
     <img src="/cat-hungry-cat.gif" alt="Hungry cat" class="hero-gif" />
-    <h1>Hungry? Find Food Fast.</h1>
-    <p>Discover nearby restaurants, browse menus, and satisfy your cravings in seconds.</p>
-    <a href="#download" class="btn">Get the App</a>
-  </section>
-
-  <section id="features" class="features">
-    <h2>Features</h2>
-    <div class="feature-grid">
-      <div class="feature-card">
-        <span class="icon">📍</span>
-        <h3>Nearby Search</h3>
-        <p>Find restaurants and food spots close to you in seconds.</p>
-      </div>
-      <div class="feature-card">
-        <span class="icon">🍽️</span>
-        <h3>Personalized Picks</h3>
-        <p>Get recommendations tailored to your taste and dietary preferences.</p>
-      </div>
-      <div class="feature-card">
-        <span class="icon">⭐</span>
-        <h3>Reviews & Ratings</h3>
-        <p>See what others think before you decide where to eat.</p>
-      </div>
-    </div>
-  </section>
-
-  <section id="how-it-works" class="how-it-works">
-    <h2>How It Works</h2>
-    <div class="steps">
-      <div class="step">
-        <span class="step-number">1</span>
-        <p>Open the app and share your location.</p>
-      </div>
-      <div class="step">
-        <span class="step-number">2</span>
-        <p>Browse nearby spots or search for a cuisine.</p>
-      </div>
-      <div class="step">
-        <span class="step-number">3</span>
-        <p>Pick a place and go eat!</p>
-      </div>
-    </div>
-  </section>
-
-  <section id="download" class="download">
-    <h2>Ready to Eat?</h2>
-    <p>Download mesoHungry and never wonder "where should we eat?" again.</p>
-    <div class="download-buttons">
-      <a href="#" class="btn">App Store</a>
-      <a href="#" class="btn btn-outline">Google Play</a>
-    </div>
-  </section>
-
-  <footer>
-    <p>&copy; 2026 mesoHungry. All rights reserved.</p>
-  </footer>
+    <h1>mesoHungry</h1>
+    <p>Find restaurants near you when hunger strikes.</p>
+    <a href="#" class="btn">Get the App</a>
+  </main>
 </Layout>
 
 <style>
-  nav {
+  main {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     align-items: center;
-    padding: 1.2rem 2rem;
-    max-width: 1100px;
-    margin: 0 auto;
-  }
-
-  .logo {
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: #228B22;
-  }
-
-  nav ul {
-    list-style: none;
-    display: flex;
-    gap: 1.5rem;
-  }
-
-  nav a {
-    font-weight: 500;
-    color: #2C1810;
-    transition: color 0.2s;
-  }
-
-  nav a:hover {
-    color: #228B22;
-  }
-
-  .hero {
+    justify-content: center;
+    min-height: 100vh;
     text-align: center;
-    padding: 6rem 2rem 4rem;
-    background: linear-gradient(135deg, #F5F5DC, #e8e0c8);
+    padding: 2rem;
   }
 
   .hero-gif {
-    width: 240px;
+    width: 280px;
     border-radius: 22px;
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
   }
 
-  .hero h1 {
+  h1 {
     font-size: 3rem;
-    margin-bottom: 1rem;
+    color: #228B22;
+    margin-bottom: 0.75rem;
   }
 
-  .hero p {
+  p {
     font-size: 1.2rem;
     color: #5C4A3A;
     margin-bottom: 2rem;
-    max-width: 500px;
-    margin-left: auto;
-    margin-right: auto;
   }
 
   .btn {
     display: inline-block;
-    padding: 0.8rem 2rem;
+    padding: 0.8rem 2.5rem;
     background: #228B22;
     color: #fff;
     border-radius: 16px;
     font-weight: 600;
+    font-size: 1.1rem;
     transition: background 0.2s;
   }
 
@@ -146,141 +55,13 @@ import Layout from "../layouts/Layout.astro";
     background: #1a6e1a;
   }
 
-  .btn-outline {
-    background: transparent;
-    color: #228B22;
-    border: 2px solid #228B22;
-  }
-
-  .btn-outline:hover {
-    background: #228B22;
-    color: #fff;
-  }
-
-  .features {
-    padding: 5rem 2rem;
-    text-align: center;
-    max-width: 1100px;
-    margin: 0 auto;
-  }
-
-  .features h2 {
-    font-size: 2rem;
-    margin-bottom: 2.5rem;
-  }
-
-  .feature-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 2rem;
-  }
-
-  .feature-card {
-    padding: 2rem;
-    border-radius: 20px;
-    background: #F0EBDC;
-    border: 1px solid #DDD5C0;
-  }
-
-  .icon {
-    font-size: 2rem;
-    display: block;
-    margin-bottom: 0.75rem;
-  }
-
-  .feature-card h3 {
-    margin-bottom: 0.5rem;
-    color: #228B22;
-  }
-
-  .feature-card p {
-    color: #5C4A3A;
-  }
-
-  .how-it-works {
-    padding: 5rem 2rem;
-    background: #EBE5D3;
-    text-align: center;
-  }
-
-  .how-it-works h2 {
-    font-size: 2rem;
-    margin-bottom: 2.5rem;
-  }
-
-  .steps {
-    display: flex;
-    justify-content: center;
-    gap: 3rem;
-    flex-wrap: wrap;
-    max-width: 800px;
-    margin: 0 auto;
-  }
-
-  .step {
-    flex: 1;
-    min-width: 180px;
-  }
-
-  .step-number {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 48px;
-    height: 48px;
-    background: #228B22;
-    color: #fff;
-    border-radius: 50%;
-    font-size: 1.3rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-  }
-
-  .step p {
-    color: #5C4A3A;
-  }
-
-  .download {
-    padding: 5rem 2rem;
-    text-align: center;
-  }
-
-  .download h2 {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-  }
-
-  .download p {
-    color: #5C4A3A;
-    margin-bottom: 2rem;
-  }
-
-  .download-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
-
-  footer {
-    padding: 2rem;
-    text-align: center;
-    color: #999;
-    font-size: 0.9rem;
-    border-top: 1px solid #DDD5C0;
-  }
-
   @media (max-width: 600px) {
-    .hero h1 {
-      font-size: 2rem;
+    h1 {
+      font-size: 2.2rem;
     }
 
-    nav ul {
-      gap: 1rem;
-    }
-
-    .steps {
-      gap: 2rem;
+    .hero-gif {
+      width: 220px;
     }
   }
 </style>
