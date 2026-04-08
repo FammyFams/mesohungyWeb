@@ -15,6 +15,7 @@ import Layout from "../layouts/Layout.astro";
   </header>
 
   <section class="hero">
+    <img src="/cat-hungry-cat.gif" alt="Hungry cat" class="hero-gif" />
     <h1>Hungry? Find Food Fast.</h1>
     <p>Discover nearby restaurants, browse menus, and satisfy your cravings in seconds.</p>
     <a href="#download" class="btn">Get the App</a>
@@ -109,6 +110,12 @@ import Layout from "../layouts/Layout.astro";
     text-align: center;
     padding: 6rem 2rem 4rem;
     background: linear-gradient(135deg, #fff4e6, #ffe8cc);
+  }
+
+  .hero-gif {
+    width: 240px;
+    border-radius: 16px;
+    margin-bottom: 1.5rem;
   }
 
   .hero h1 {
