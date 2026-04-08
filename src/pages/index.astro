@@ -1,0 +1,279 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Food Finder - Restaurants Near You">
+  <header>
+    <nav>
+      <div class="logo">Food Finder</div>
+      <ul>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#how-it-works">How It Works</a></li>
+        <li><a href="#download">Download</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <h1>Hungry? Find Food Fast.</h1>
+    <p>Discover nearby restaurants, browse menus, and satisfy your cravings in seconds.</p>
+    <a href="#download" class="btn">Get the App</a>
+  </section>
+
+  <section id="features" class="features">
+    <h2>Features</h2>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <span class="icon">📍</span>
+        <h3>Nearby Search</h3>
+        <p>Find restaurants and food spots close to you in seconds.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">🍽️</span>
+        <h3>Personalized Picks</h3>
+        <p>Get recommendations tailored to your taste and dietary preferences.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">⭐</span>
+        <h3>Reviews & Ratings</h3>
+        <p>See what others think before you decide where to eat.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="how-it-works" class="how-it-works">
+    <h2>How It Works</h2>
+    <div class="steps">
+      <div class="step">
+        <span class="step-number">1</span>
+        <p>Open the app and share your location.</p>
+      </div>
+      <div class="step">
+        <span class="step-number">2</span>
+        <p>Browse nearby spots or search for a cuisine.</p>
+      </div>
+      <div class="step">
+        <span class="step-number">3</span>
+        <p>Pick a place and go eat!</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="download" class="download">
+    <h2>Ready to Eat?</h2>
+    <p>Download Food Finder and never wonder "where should we eat?" again.</p>
+    <div class="download-buttons">
+      <a href="#" class="btn">App Store</a>
+      <a href="#" class="btn btn-outline">Google Play</a>
+    </div>
+  </section>
+
+  <footer>
+    <p>&copy; 2026 Food Finder. All rights reserved.</p>
+  </footer>
+</Layout>
+
+<style>
+  nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.2rem 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .logo {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #e85d04;
+  }
+
+  nav ul {
+    list-style: none;
+    display: flex;
+    gap: 1.5rem;
+  }
+
+  nav a {
+    font-weight: 500;
+    color: #333;
+    transition: color 0.2s;
+  }
+
+  nav a:hover {
+    color: #e85d04;
+  }
+
+  .hero {
+    text-align: center;
+    padding: 6rem 2rem 4rem;
+    background: linear-gradient(135deg, #fff4e6, #ffe8cc);
+  }
+
+  .hero h1 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+  }
+
+  .hero p {
+    font-size: 1.2rem;
+    color: #555;
+    margin-bottom: 2rem;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .btn {
+    display: inline-block;
+    padding: 0.8rem 2rem;
+    background: #e85d04;
+    color: #fff;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: background 0.2s;
+  }
+
+  .btn:hover {
+    background: #c44d03;
+  }
+
+  .btn-outline {
+    background: transparent;
+    color: #e85d04;
+    border: 2px solid #e85d04;
+  }
+
+  .btn-outline:hover {
+    background: #e85d04;
+    color: #fff;
+  }
+
+  .features {
+    padding: 5rem 2rem;
+    text-align: center;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .features h2 {
+    font-size: 2rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 2rem;
+  }
+
+  .feature-card {
+    padding: 2rem;
+    border-radius: 12px;
+    background: #fafafa;
+    border: 1px solid #eee;
+  }
+
+  .icon {
+    font-size: 2rem;
+    display: block;
+    margin-bottom: 0.75rem;
+  }
+
+  .feature-card h3 {
+    margin-bottom: 0.5rem;
+    color: #e85d04;
+  }
+
+  .feature-card p {
+    color: #555;
+  }
+
+  .how-it-works {
+    padding: 5rem 2rem;
+    background: #fdf6ee;
+    text-align: center;
+  }
+
+  .how-it-works h2 {
+    font-size: 2rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .steps {
+    display: flex;
+    justify-content: center;
+    gap: 3rem;
+    flex-wrap: wrap;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .step {
+    flex: 1;
+    min-width: 180px;
+  }
+
+  .step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: #e85d04;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+  }
+
+  .step p {
+    color: #555;
+  }
+
+  .download {
+    padding: 5rem 2rem;
+    text-align: center;
+  }
+
+  .download h2 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+  }
+
+  .download p {
+    color: #555;
+    margin-bottom: 2rem;
+  }
+
+  .download-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  footer {
+    padding: 2rem;
+    text-align: center;
+    color: #999;
+    font-size: 0.9rem;
+    border-top: 1px solid #eee;
+  }
+
+  @media (max-width: 600px) {
+    .hero h1 {
+      font-size: 2rem;
+    }
+
+    nav ul {
+      gap: 1rem;
+    }
+
+    .steps {
+      gap: 2rem;
+    }
+  }
+</style>
