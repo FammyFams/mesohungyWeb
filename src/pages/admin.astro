@@ -1,0 +1,339 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="mesoHungry — Admin">
+  <div id="login-gate">
+    <div class="login-box">
+      <h1>Admin</h1>
+      <input type="password" id="pw" placeholder="Password" />
+      <button id="login-btn">Enter</button>
+    </div>
+  </div>
+
+  <div id="dashboard" style="display:none;">
+    <header>
+      <h1>mesoHungry Analytics</h1>
+      <button id="logout-btn">Logout</button>
+    </header>
+
+    <div class="stats">
+      <div class="stat-card">
+        <span class="stat-value" id="total-opens">—</span>
+        <span class="stat-label">App Opens</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="total-likes">—</span>
+        <span class="stat-label">Restaurants Liked</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="total-skips">—</span>
+        <span class="stat-label">Restaurants Skipped</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="total-details">—</span>
+        <span class="stat-label">Details Viewed</span>
+      </div>
+    </div>
+
+    <section class="events-section">
+      <h2>Recent Events</h2>
+      <div class="table-wrap">
+        <table id="events-table">
+          <thead>
+            <tr>
+              <th>Event</th>
+              <th>Details</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody id="events-body">
+            <tr><td colspan="3" class="loading">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</Layout>
+
+<script is:inline>
+  const API_KEY = atob('cGh4X3dDeWVUdWdzVmFNMll1WlFTQTd0S21jRmVmWk5XZGF5YkxTNkVFY0Q2dUdUdHpEcA==');
+  const API_HOST = 'https://us.i.posthog.com';
+  const PASSWORD = 'mesohungry2026';
+
+  const gate = document.getElementById('login-gate');
+  const dash = document.getElementById('dashboard');
+  const pwInput = document.getElementById('pw');
+  const loginBtn = document.getElementById('login-btn');
+  const logoutBtn = document.getElementById('logout-btn');
+
+  // Check session
+  if (sessionStorage.getItem('admin_auth') === 'true') {
+    gate.style.display = 'none';
+    dash.style.display = 'block';
+    loadData();
+  }
+
+  loginBtn.addEventListener('click', tryLogin);
+  pwInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLogin(); });
+  logoutBtn.addEventListener('click', () => {
+    sessionStorage.removeItem('admin_auth');
+    window.location.href = '/';
+  });
+
+  function tryLogin() {
+    if (pwInput.value === PASSWORD) {
+      sessionStorage.setItem('admin_auth', 'true');
+      gate.style.display = 'none';
+      dash.style.display = 'block';
+      loadData();
+    } else {
+      pwInput.style.borderColor = '#C0392B';
+      pwInput.value = '';
+      pwInput.placeholder = 'Wrong password';
+    }
+  }
+
+  async function fetchEvents(eventName, limit = 100) {
+    const url = `${API_HOST}/api/projects/@current/events/?event=${eventName}&limit=${limit}`;
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${API_KEY}` }
+    });
+    if (!res.ok) throw new Error(`Failed to fetch ${eventName}: ${res.status}`);
+    const data = await res.json();
+    return data.results || [];
+  }
+
+  async function loadData() {
+    try {
+      const [opens, likes, skips, details] = await Promise.all([
+        fetchEvents('app_opened'),
+        fetchEvents('restaurant_liked'),
+        fetchEvents('restaurant_skipped'),
+        fetchEvents('detail_viewed'),
+      ]);
+
+      document.getElementById('total-opens').textContent = opens.length;
+      document.getElementById('total-likes').textContent = likes.length;
+      document.getElementById('total-skips').textContent = skips.length;
+      document.getElementById('total-details').textContent = details.length;
+
+      // Combine and sort recent events
+      const all = [...opens, ...likes, ...skips, ...details]
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, 50);
+
+      const tbody = document.getElementById('events-body');
+      if (all.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="loading">No events yet</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = all.map(ev => {
+        const name = ev.properties?.$current_url ? '' : (ev.properties?.name || '');
+        const rating = ev.properties?.rating ? `⭐ ${ev.properties.rating}` : '';
+        const detail = [name, rating].filter(Boolean).join(' — ') || '—';
+        const time = new Date(ev.timestamp).toLocaleString();
+        const label = ev.event.replace(/_/g, ' ');
+        return `<tr>
+          <td><span class="event-badge">${label}</span></td>
+          <td>${detail}</td>
+          <td>${time}</td>
+        </tr>`;
+      }).join('');
+
+    } catch (err) {
+      console.error('PostHog fetch error:', err);
+      document.getElementById('events-body').innerHTML =
+        `<tr><td colspan="3" class="loading">Error loading data: ${err.message}</td></tr>`;
+    }
+  }
+</script>
+
+<style>
+  /* Login gate */
+  #login-gate {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+
+  .login-box {
+    text-align: center;
+  }
+
+  .login-box h1 {
+    font-size: 2rem;
+    color: #228B22;
+    margin-bottom: 1.5rem;
+  }
+
+  .login-box input {
+    display: block;
+    width: 260px;
+    padding: 0.7rem 1rem;
+    border: 2px solid #DDD5C0;
+    border-radius: 12px;
+    background: #F0EBDC;
+    font-family: "Raleway", sans-serif;
+    font-size: 1rem;
+    color: #2C1810;
+    margin-bottom: 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .login-box input:focus {
+    border-color: #228B22;
+  }
+
+  .login-box button {
+    padding: 0.7rem 2rem;
+    background: #228B22;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-family: "Raleway", sans-serif;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .login-box button:hover {
+    background: #1a6e1a;
+  }
+
+  /* Dashboard */
+  #dashboard header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  #dashboard header h1 {
+    font-size: 1.6rem;
+    color: #228B22;
+  }
+
+  #logout-btn {
+    padding: 0.5rem 1.2rem;
+    background: transparent;
+    color: #C0392B;
+    border: 2px solid #C0392B;
+    border-radius: 10px;
+    font-family: "Raleway", sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  #logout-btn:hover {
+    background: #C0392B;
+    color: #fff;
+  }
+
+  /* Stats */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 2rem 2rem;
+  }
+
+  .stat-card {
+    background: #F0EBDC;
+    border: 1px solid #DDD5C0;
+    border-radius: 20px;
+    padding: 1.5rem;
+    text-align: center;
+  }
+
+  .stat-value {
+    display: block;
+    font-family: "Lora", serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #228B22;
+    margin-bottom: 0.3rem;
+  }
+
+  .stat-label {
+    font-size: 0.9rem;
+    color: #5C4A3A;
+    font-weight: 500;
+  }
+
+  /* Events table */
+  .events-section {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 2rem 3rem;
+  }
+
+  .events-section h2 {
+    font-size: 1.4rem;
+    color: #2C1810;
+    margin-bottom: 1rem;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    border-radius: 16px;
+    border: 1px solid #DDD5C0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+
+  th {
+    background: #EBE5D3;
+    color: #5C4A3A;
+    font-weight: 600;
+    text-align: left;
+    padding: 0.8rem 1rem;
+  }
+
+  td {
+    padding: 0.7rem 1rem;
+    border-top: 1px solid #EBE5D3;
+    color: #2C1810;
+  }
+
+  .loading {
+    text-align: center;
+    color: #5C4A3A;
+    padding: 2rem;
+  }
+
+  .event-badge {
+    display: inline-block;
+    background: #228B22;
+    color: #fff;
+    padding: 0.2rem 0.6rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+
+  @media (max-width: 600px) {
+    .stats {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    #dashboard header h1 {
+      font-size: 1.2rem;
+    }
+  }
+</style>
