@@ -2,7 +2,7 @@
 import Layout from "../layouts/Layout.astro";
 ---
 
-<Layout title="mesoHungry — Admin">
+<Layout title="mesoHungy — Admin">
   <div id="login-gate">
     <div class="login-box">
       <h1>Admin</h1>
@@ -13,7 +13,7 @@ import Layout from "../layouts/Layout.astro";
 
   <div id="dashboard" style="display:none;">
     <header>
-      <h1>mesoHungry Analytics</h1>
+      <h1>mesoHungy Analytics</h1>
       <button id="logout-btn">Logout</button>
     </header>
 
@@ -59,7 +59,7 @@ import Layout from "../layouts/Layout.astro";
 <script is:inline>
   const API_KEY = atob('cGh4X3dDeWVUdWdzVmFNMll1WlFTQTd0S21jRmVmWk5XZGF5YkxTNkVFY0Q2dUdUdHpEcA==');
   const API_HOST = 'https://us.i.posthog.com';
-  const PASSWORD = 'mesohungry2026';
+  const PASSWORD = 'mesohungy2026';
 
   const gate = document.getElementById('login-gate');
   const dash = document.getElementById('dashboard');
