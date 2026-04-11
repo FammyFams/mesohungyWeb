@@ -64,20 +64,15 @@ import Layout from "../layouts/Layout.astro";
         <table id="events-table">
           <thead>
             <tr>
+              <th>Time</th>
               <th>Event</th>
               <th>Restaurant</th>
               <th>Rating</th>
-              <th>Price</th>
-              <th>Open</th>
-              <th>OS</th>
               <th>Device</th>
-              <th>Screen</th>
-              <th>App Ver</th>
-              <th>Time</th>
             </tr>
           </thead>
           <tbody id="events-body">
-            <tr><td colspan="10" class="loading">Loading...</td></tr>
+            <tr><td colspan="5" class="loading">Loading...</td></tr>
           </tbody>
         </table>
       </div>
@@ -191,41 +186,58 @@ import Layout from "../layouts/Layout.astro";
     } catch (err) {
       console.error('PostHog fetch error:', err);
       document.getElementById('events-body').innerHTML =
-        `<tr><td colspan="10" class="loading">Error loading data: ${err.message}</td></tr>`;
+        `<tr><td colspan="5" class="loading">Error loading data: ${err.message}</td></tr>`;
     }
   }
 
   function renderEvents(events) {
     const tbody = document.getElementById('events-body');
     if (events.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="10" class="loading">No events yet</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" class="loading">No events yet</td></tr>';
       return;
     }
-    tbody.innerHTML = events.map(ev => {
+    tbody.innerHTML = events.map((ev, i) => {
       const p = ev.properties || {};
       const name = p.name || '—';
       const rating = p.rating ? `⭐ ${p.rating}` : '—';
-      const price = p.price_level || '—';
-      const openNow = p.open_now === true ? '✅' : p.open_now === false ? '❌' : '—';
-      const os = [p.os_name || p.$os, p.os_version || p.$os_version].filter(Boolean).join(' ') || '—';
       const device = [p.device_brand || p.$device_manufacturer, p.device_model || p.$device_name].filter(Boolean).join(' ') || (p.$device_type || '—');
+      const time = new Date(ev.timestamp).toLocaleString();
+      const label = ev.event.replace(/_/g, ' ');
+
+      // Detail row data
+      const price = p.price_level || '—';
+      const openNow = p.open_now === true ? '✅ Yes' : p.open_now === false ? '❌ No' : '—';
+      const os = [p.os_name || p.$os, p.os_version || p.$os_version].filter(Boolean).join(' ') || '—';
       const screenW = Math.round(p.screen_width || p.$screen_width || 0);
       const screenH = Math.round(p.screen_height || p.$screen_height || 0);
       const screen = screenW && screenH ? `${screenW}x${screenH}` : '—';
       const appVer = p.$app_version || '—';
-      const time = new Date(ev.timestamp).toLocaleString();
-      const label = ev.event.replace(/_/g, ' ');
-      return `<tr>
+      const tags = p.tags || '—';
+      const city = p.$geoip_city_name || '—';
+      const region = p.$geoip_subdivision_1_name || '';
+      const location = [city, region].filter(Boolean).join(', ') || '—';
+      const physical = p.is_physical_device === true ? 'Yes' : p.is_physical_device === false ? 'Emulator' : '—';
+
+      return `<tr class="event-row" onclick="document.getElementById('detail-${i}').classList.toggle('show')">
+        <td>${time}</td>
         <td><span class="event-badge">${label}</span></td>
         <td>${name}</td>
         <td>${rating}</td>
-        <td>${price}</td>
-        <td>${openNow}</td>
-        <td>${os}</td>
         <td>${device}</td>
-        <td>${screen}</td>
-        <td>${appVer}</td>
-        <td>${time}</td>
+      </tr>
+      <tr id="detail-${i}" class="detail-row">
+        <td colspan="5">
+          <div class="detail-grid">
+            <div><strong>Price:</strong> ${price}</div>
+            <div><strong>Open:</strong> ${openNow}</div>
+            <div><strong>OS:</strong> ${os}</div>
+            <div><strong>Screen:</strong> ${screen}</div>
+            <div><strong>App Ver:</strong> ${appVer}</div>
+            <div><strong>Location:</strong> ${location}</div>
+            <div><strong>Physical:</strong> ${physical}</div>
+            <div><strong>Tags:</strong> ${tags}</div>
+          </div>
+        </td>
       </tr>`;
     }).join('');
   }
@@ -504,6 +516,41 @@ import Layout from "../layouts/Layout.astro";
     font-size: 0.8rem;
     font-weight: 600;
     text-transform: capitalize;
+  }
+
+  .event-row {
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .event-row:hover {
+    background: #EBE5D3;
+  }
+
+  .detail-row {
+    display: none;
+  }
+
+  .detail-row.show {
+    display: table-row;
+  }
+
+  .detail-row td {
+    background: #F7F3E8;
+    padding: 1rem;
+    border-top: none;
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.5rem 1.5rem;
+    font-size: 0.85rem;
+    color: #2C1810;
+  }
+
+  .detail-grid strong {
+    color: #5C4A3A;
   }
 
   .load-more-wrap {
