@@ -175,6 +175,7 @@ import Layout from "../layouts/Layout.astro";
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
+          'apikey': SUPABASE_ANON_KEY,
         },
         body: JSON.stringify(nextUrl ? { nextUrl } : { event: eventName, limit }),
       }
