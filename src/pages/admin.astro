@@ -6,8 +6,10 @@ import Layout from "../layouts/Layout.astro";
   <div id="login-gate">
     <div class="login-box">
       <h1>Admin</h1>
+      <input type="email" id="email" placeholder="Email" />
       <input type="password" id="pw" placeholder="Password" />
-      <button id="login-btn">Enter</button>
+      <button id="login-btn">Sign In</button>
+      <p id="login-error" class="login-error"></p>
     </div>
   </div>
 
@@ -91,19 +93,26 @@ import Layout from "../layouts/Layout.astro";
   </div>
 </Layout>
 
-<script is:inline>
-  const API_KEY = atob('cGh4X3dDeWVUdWdzVmFNMll1WlFTQTd0S21jRmVmWk5XZGF5YkxTNkVFY0Q2dUdUdHpEcA==');
-  const API_HOST = 'https://us.i.posthog.com';
-  const PASSWORD = 'mesohungy2026';
+<script>
+  import { createClient } from '@supabase/supabase-js';
 
-  const gate = document.getElementById('login-gate');
-  const dash = document.getElementById('dashboard');
-  const pwInput = document.getElementById('pw');
-  const loginBtn = document.getElementById('login-btn');
-  const logoutBtn = document.getElementById('logout-btn');
+  const SUPABASE_URL = 'https://xyuefjlrozbyapjeajid.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_RxrUrVczBnEb2oBm6Hq24g_JzUPlqPB';
+  const PROXY_URL = `${SUPABASE_URL}/functions/v1/posthog-proxy`;
 
-  // Check session
-  if (sessionStorage.getItem('admin_auth') === 'true') {
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const gate = document.getElementById('login-gate')!;
+  const dash = document.getElementById('dashboard')!;
+  const emailInput = document.getElementById('email') as HTMLInputElement;
+  const pwInput = document.getElementById('pw') as HTMLInputElement;
+  const loginBtn = document.getElementById('login-btn')!;
+  const logoutBtn = document.getElementById('logout-btn')!;
+  const loginError = document.getElementById('login-error')!;
+
+  // Check existing session
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
     gate.style.display = 'none';
     dash.style.display = 'block';
     loadData();
@@ -111,26 +120,29 @@ import Layout from "../layouts/Layout.astro";
 
   loginBtn.addEventListener('click', tryLogin);
   pwInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLogin(); });
-  logoutBtn.addEventListener('click', () => {
-    sessionStorage.removeItem('admin_auth');
+  logoutBtn.addEventListener('click', async () => {
+    await supabase.auth.signOut();
     window.location.href = '/';
   });
 
-  function tryLogin() {
-    if (pwInput.value === PASSWORD) {
-      sessionStorage.setItem('admin_auth', 'true');
-      gate.style.display = 'none';
-      dash.style.display = 'block';
-      loadData();
-    } else {
-      pwInput.style.borderColor = '#C0392B';
+  async function tryLogin() {
+    loginError.textContent = '';
+    const { error } = await supabase.auth.signInWithPassword({
+      email: emailInput.value,
+      password: pwInput.value,
+    });
+    if (error) {
+      loginError.textContent = error.message;
       pwInput.value = '';
-      pwInput.placeholder = 'Wrong password';
+      return;
     }
+    gate.style.display = 'none';
+    dash.style.display = 'block';
+    loadData();
   }
 
-  function renderBreakdown(events, prop, elementId) {
-    const counts = {};
+  function renderBreakdown(events: any[], prop: string | string[], elementId: string) {
+    const counts: Record<string, number> = {};
     const props = Array.isArray(prop) ? prop : [prop];
     events.forEach(ev => {
       let val = 'Unknown';
@@ -139,7 +151,7 @@ import Layout from "../layouts/Layout.astro";
     });
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
     const total = events.length;
-    const el = document.getElementById(elementId);
+    const el = document.getElementById(elementId)!;
     if (sorted.length === 0) { el.textContent = 'No data'; return; }
     el.innerHTML = sorted.map(([name, count]) => {
       const pct = total ? Math.round(count / total * 100) : 0;
@@ -151,13 +163,25 @@ import Layout from "../layouts/Layout.astro";
     }).join('');
   }
 
-  let allEvents = [];
-  let nextUrls = {};
+  let allEvents: any[] = [];
+  let nextUrls: Record<string, string> = {};
 
-  async function fetchEvents(eventName, limit = 100, url = null) {
-    const fetchUrl = url || `${API_HOST}/api/projects/@current/events/?event=${eventName}&limit=${limit}`;
-    const res = await fetch(fetchUrl, {
-      headers: { 'Authorization': `Bearer ${API_KEY}` }
+  async function getToken() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+    return session.access_token;
+  }
+
+  async function fetchEvents(eventName: string, limit = 100, nextUrl: string | null = null) {
+    const token = await getToken();
+    const res = await fetch(`${PROXY_URL}/events`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(nextUrl ? { nextUrl } : { event: eventName, limit }),
     });
     if (!res.ok) throw new Error(`Failed to fetch ${eventName}: ${res.status}`);
     const data = await res.json();
@@ -175,31 +199,29 @@ import Layout from "../layouts/Layout.astro";
         fetchEvents('detail_viewed'),
       ]);
 
-      document.getElementById('total-opens').textContent = opens.length;
-      document.getElementById('total-likes').textContent = likes.length;
-      document.getElementById('total-skips').textContent = skips.length;
-      document.getElementById('total-details').textContent = details.length;
+      document.getElementById('total-opens')!.textContent = String(opens.length);
+      document.getElementById('total-likes')!.textContent = String(likes.length);
+      document.getElementById('total-skips')!.textContent = String(skips.length);
+      document.getElementById('total-details')!.textContent = String(details.length);
 
-      // Device & OS breakdowns from all events
       allEvents = [...opens, ...likes, ...skips, ...details];
       renderBreakdown(allEvents, ['os_name', '$os'], 'os-breakdown');
       renderBreakdown(allEvents, ['device_brand', '$device_manufacturer'], 'brand-breakdown');
       renderBreakdown(allEvents, ['device_model', '$device_name'], 'model-breakdown');
       renderBreakdown(allEvents, '$device_type', 'type-breakdown');
 
-      // Sort for recent events table
-      allEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      allEvents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       renderEvents(allEvents);
 
-    } catch (err) {
+    } catch (err: any) {
       console.error('PostHog fetch error:', err);
-      document.getElementById('events-body').innerHTML =
+      document.getElementById('events-body')!.innerHTML =
         `<tr><td colspan="13" class="loading">Error loading data: ${err.message}</td></tr>`;
     }
   }
 
-  function renderEvents(events) {
-    const tbody = document.getElementById('events-body');
+  function renderEvents(events: any[]) {
+    const tbody = document.getElementById('events-body')!;
     if (events.length === 0) {
       tbody.innerHTML = '<tr><td colspan="13" class="loading">No events yet</td></tr>';
       return;
@@ -242,7 +264,7 @@ import Layout from "../layouts/Layout.astro";
   }
 
   async function loadMore() {
-    const btn = document.getElementById('load-more-btn');
+    const btn = document.getElementById('load-more-btn') as HTMLButtonElement;
     btn.textContent = 'Loading...';
     btn.disabled = true;
     try {
@@ -253,13 +275,12 @@ import Layout from "../layouts/Layout.astro";
       const results = await Promise.all(fetches);
       const newEvents = results.flat();
       allEvents = [...allEvents, ...newEvents];
-      allEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      allEvents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       renderEvents(allEvents);
-      // Update counts
-      document.getElementById('total-opens').textContent = allEvents.filter(e => e.event === 'app_opened').length;
-      document.getElementById('total-likes').textContent = allEvents.filter(e => e.event === 'restaurant_liked').length;
-      document.getElementById('total-skips').textContent = allEvents.filter(e => e.event === 'restaurant_skipped').length;
-      document.getElementById('total-details').textContent = allEvents.filter(e => e.event === 'detail_viewed').length;
+      document.getElementById('total-opens')!.textContent = String(allEvents.filter(e => e.event === 'app_opened').length);
+      document.getElementById('total-likes')!.textContent = String(allEvents.filter(e => e.event === 'restaurant_liked').length);
+      document.getElementById('total-skips')!.textContent = String(allEvents.filter(e => e.event === 'restaurant_skipped').length);
+      document.getElementById('total-details')!.textContent = String(allEvents.filter(e => e.event === 'detail_viewed').length);
     } catch (err) {
       console.error('Load more error:', err);
     }
@@ -271,7 +292,7 @@ import Layout from "../layouts/Layout.astro";
     }
   }
 
-  document.getElementById('load-more-btn').addEventListener('click', loadMore);
+  document.getElementById('load-more-btn')!.addEventListener('click', loadMore);
 </script>
 
 <style>
@@ -327,6 +348,13 @@ import Layout from "../layouts/Layout.astro";
 
   .login-box button:hover {
     background: #1a6e1a;
+  }
+
+  .login-error {
+    color: #C0392B;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+    min-height: 1.2em;
   }
 
   /* Dashboard */
