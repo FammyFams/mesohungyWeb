@@ -98,8 +98,6 @@ import Layout from "../layouts/Layout.astro";
 
   const SUPABASE_URL = 'https://xyuefjlrozbyapjeajid.supabase.co';
   const SUPABASE_ANON_KEY = 'sb_publishable_RxrUrVczBnEb2oBm6Hq24g_JzUPlqPB';
-  const PROXY_URL = `${SUPABASE_URL}/functions/v1/posthog-proxy`;
-
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const gate = document.getElementById('login-gate')!;
@@ -166,25 +164,11 @@ import Layout from "../layouts/Layout.astro";
   let allEvents: any[] = [];
   let nextUrls: Record<string, string> = {};
 
-  async function getToken() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error('Not authenticated');
-    return session.access_token;
-  }
-
   async function fetchEvents(eventName: string, limit = 100, nextUrl: string | null = null) {
-    const token = await getToken();
-    const res = await fetch(`${PROXY_URL}/events`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'apikey': SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify(nextUrl ? { nextUrl } : { event: eventName, limit }),
+    const { data, error } = await supabase.functions.invoke('posthog-proxy/events', {
+      body: nextUrl ? { nextUrl } : { event: eventName, limit },
     });
-    if (!res.ok) throw new Error(`Failed to fetch ${eventName}: ${res.status}`);
-    const data = await res.json();
+    if (error) throw new Error(`Failed to fetch ${eventName}: ${error.message}`);
     if (data.next) nextUrls[eventName] = data.next;
     else delete nextUrls[eventName];
     return data.results || [];
