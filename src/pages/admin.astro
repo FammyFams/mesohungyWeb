@@ -81,6 +81,9 @@ import Layout from "../layouts/Layout.astro";
           </tbody>
         </table>
       </div>
+      <div class="load-more-wrap">
+        <button id="load-more-btn" class="load-more-btn">Load More</button>
+      </div>
     </section>
   </div>
 </Layout>
@@ -145,13 +148,18 @@ import Layout from "../layouts/Layout.astro";
     }).join('');
   }
 
-  async function fetchEvents(eventName, limit = 100) {
-    const url = `${API_HOST}/api/projects/@current/events/?event=${eventName}&limit=${limit}`;
-    const res = await fetch(url, {
+  let allEvents = [];
+  let nextUrls = {};
+
+  async function fetchEvents(eventName, limit = 100, url = null) {
+    const fetchUrl = url || `${API_HOST}/api/projects/@current/events/?event=${eventName}&limit=${limit}`;
+    const res = await fetch(fetchUrl, {
       headers: { 'Authorization': `Bearer ${API_KEY}` }
     });
     if (!res.ok) throw new Error(`Failed to fetch ${eventName}: ${res.status}`);
     const data = await res.json();
+    if (data.next) nextUrls[eventName] = data.next;
+    else delete nextUrls[eventName];
     return data.results || [];
   }
 
@@ -170,49 +178,15 @@ import Layout from "../layouts/Layout.astro";
       document.getElementById('total-details').textContent = details.length;
 
       // Device & OS breakdowns from all events
-      const all = [...opens, ...likes, ...skips, ...details];
-      renderBreakdown(all, ['os_name', '$os'], 'os-breakdown');
-      renderBreakdown(all, ['device_brand', '$device_manufacturer'], 'brand-breakdown');
-      renderBreakdown(all, ['device_model', '$device_name'], 'model-breakdown');
-      renderBreakdown(all, '$device_type', 'type-breakdown');
+      allEvents = [...opens, ...likes, ...skips, ...details];
+      renderBreakdown(allEvents, ['os_name', '$os'], 'os-breakdown');
+      renderBreakdown(allEvents, ['device_brand', '$device_manufacturer'], 'brand-breakdown');
+      renderBreakdown(allEvents, ['device_model', '$device_name'], 'model-breakdown');
+      renderBreakdown(allEvents, '$device_type', 'type-breakdown');
 
       // Sort for recent events table
-      all.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      const recent = all.slice(0, 50);
-
-      const tbody = document.getElementById('events-body');
-      if (recent.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="loading">No events yet</td></tr>';
-        return;
-      }
-
-      tbody.innerHTML = recent.map(ev => {
-        const p = ev.properties || {};
-        const name = p.name || '—';
-        const rating = p.rating ? `⭐ ${p.rating}` : '—';
-        const price = p.price_level || '—';
-        const openNow = p.open_now === true ? '✅' : p.open_now === false ? '❌' : '—';
-        const os = [p.os_name || p.$os, p.os_version || p.$os_version].filter(Boolean).join(' ') || '—';
-        const device = [p.device_brand || p.$device_manufacturer, p.device_model || p.$device_name].filter(Boolean).join(' ') || (p.$device_type || '—');
-        const screenW = Math.round(p.screen_width || p.$screen_width || 0);
-        const screenH = Math.round(p.screen_height || p.$screen_height || 0);
-        const screen = screenW && screenH ? `${screenW}x${screenH}` : '—';
-        const appVer = p.$app_version || '—';
-        const time = new Date(ev.timestamp).toLocaleString();
-        const label = ev.event.replace(/_/g, ' ');
-        return `<tr>
-          <td><span class="event-badge">${label}</span></td>
-          <td>${name}</td>
-          <td>${rating}</td>
-          <td>${price}</td>
-          <td>${openNow}</td>
-          <td>${os}</td>
-          <td>${device}</td>
-          <td>${screen}</td>
-          <td>${appVer}</td>
-          <td>${time}</td>
-        </tr>`;
-      }).join('');
+      allEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      renderEvents(allEvents);
 
     } catch (err) {
       console.error('PostHog fetch error:', err);
@@ -220,6 +194,73 @@ import Layout from "../layouts/Layout.astro";
         `<tr><td colspan="10" class="loading">Error loading data: ${err.message}</td></tr>`;
     }
   }
+
+  function renderEvents(events) {
+    const tbody = document.getElementById('events-body');
+    if (events.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="10" class="loading">No events yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = events.map(ev => {
+      const p = ev.properties || {};
+      const name = p.name || '—';
+      const rating = p.rating ? `⭐ ${p.rating}` : '—';
+      const price = p.price_level || '—';
+      const openNow = p.open_now === true ? '✅' : p.open_now === false ? '❌' : '—';
+      const os = [p.os_name || p.$os, p.os_version || p.$os_version].filter(Boolean).join(' ') || '—';
+      const device = [p.device_brand || p.$device_manufacturer, p.device_model || p.$device_name].filter(Boolean).join(' ') || (p.$device_type || '—');
+      const screenW = Math.round(p.screen_width || p.$screen_width || 0);
+      const screenH = Math.round(p.screen_height || p.$screen_height || 0);
+      const screen = screenW && screenH ? `${screenW}x${screenH}` : '—';
+      const appVer = p.$app_version || '—';
+      const time = new Date(ev.timestamp).toLocaleString();
+      const label = ev.event.replace(/_/g, ' ');
+      return `<tr>
+        <td><span class="event-badge">${label}</span></td>
+        <td>${name}</td>
+        <td>${rating}</td>
+        <td>${price}</td>
+        <td>${openNow}</td>
+        <td>${os}</td>
+        <td>${device}</td>
+        <td>${screen}</td>
+        <td>${appVer}</td>
+        <td>${time}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function loadMore() {
+    const btn = document.getElementById('load-more-btn');
+    btn.textContent = 'Loading...';
+    btn.disabled = true;
+    try {
+      const eventTypes = ['app_opened', 'restaurant_liked', 'restaurant_skipped', 'detail_viewed'];
+      const fetches = eventTypes
+        .filter(e => nextUrls[e])
+        .map(e => fetchEvents(e, 100, nextUrls[e]));
+      const results = await Promise.all(fetches);
+      const newEvents = results.flat();
+      allEvents = [...allEvents, ...newEvents];
+      allEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      renderEvents(allEvents);
+      // Update counts
+      document.getElementById('total-opens').textContent = allEvents.filter(e => e.event === 'app_opened').length;
+      document.getElementById('total-likes').textContent = allEvents.filter(e => e.event === 'restaurant_liked').length;
+      document.getElementById('total-skips').textContent = allEvents.filter(e => e.event === 'restaurant_skipped').length;
+      document.getElementById('total-details').textContent = allEvents.filter(e => e.event === 'detail_viewed').length;
+    } catch (err) {
+      console.error('Load more error:', err);
+    }
+    btn.textContent = 'Load More';
+    btn.disabled = false;
+    if (Object.keys(nextUrls).length === 0) {
+      btn.textContent = 'All loaded';
+      btn.disabled = true;
+    }
+  }
+
+  document.getElementById('load-more-btn').addEventListener('click', loadMore);
 </script>
 
 <style>
@@ -463,6 +504,34 @@ import Layout from "../layouts/Layout.astro";
     font-size: 0.8rem;
     font-weight: 600;
     text-transform: capitalize;
+  }
+
+  .load-more-wrap {
+    text-align: center;
+    padding: 1.5rem 0;
+  }
+
+  .load-more-btn {
+    padding: 0.6rem 2rem;
+    background: #228B22;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-family: "Raleway", sans-serif;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .load-more-btn:hover {
+    background: #1a6e1a;
+  }
+
+  .load-more-btn:disabled {
+    background: #DDD5C0;
+    color: #5C4A3A;
+    cursor: default;
   }
 
   @media (max-width: 600px) {
