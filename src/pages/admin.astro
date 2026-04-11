@@ -72,11 +72,12 @@ import Layout from "../layouts/Layout.astro";
               <th>OS</th>
               <th>Device</th>
               <th>Screen</th>
+              <th>App Ver</th>
               <th>Time</th>
             </tr>
           </thead>
           <tbody id="events-body">
-            <tr><td colspan="9" class="loading">Loading...</td></tr>
+            <tr><td colspan="10" class="loading">Loading...</td></tr>
           </tbody>
         </table>
       </div>
@@ -179,7 +180,7 @@ import Layout from "../layouts/Layout.astro";
 
       const tbody = document.getElementById('events-body');
       if (recent.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="loading">No events yet</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="loading">No events yet</td></tr>';
         return;
       }
 
@@ -192,6 +193,7 @@ import Layout from "../layouts/Layout.astro";
         const os = [p.$os, p.$os_version].filter(Boolean).join(' ') || '—';
         const device = [p.$device_brand, p.$device_model].filter(Boolean).join(' ') || (p.$device_type || '—');
         const screen = p.$screen_width && p.$screen_height ? `${p.$screen_width}x${p.$screen_height}` : '—';
+        const appVer = p.$app_version || p.$app_build || '—';
         const time = new Date(ev.timestamp).toLocaleString();
         const label = ev.event.replace(/_/g, ' ');
         return `<tr>
@@ -203,6 +205,7 @@ import Layout from "../layouts/Layout.astro";
           <td>${os}</td>
           <td>${device}</td>
           <td>${screen}</td>
+          <td>${appVer}</td>
           <td>${time}</td>
         </tr>`;
       }).join('');
@@ -210,7 +213,7 @@ import Layout from "../layouts/Layout.astro";
     } catch (err) {
       console.error('PostHog fetch error:', err);
       document.getElementById('events-body').innerHTML =
-        `<tr><td colspan="9" class="loading">Error loading data: ${err.message}</td></tr>`;
+        `<tr><td colspan="10" class="loading">Error loading data: ${err.message}</td></tr>`;
     }
   }
 </script>
