@@ -197,7 +197,7 @@ import Layout from "../layouts/Layout.astro";
         const screenW = Math.round(p.screen_width || p.$screen_width || 0);
         const screenH = Math.round(p.screen_height || p.$screen_height || 0);
         const screen = screenW && screenH ? `${screenW}x${screenH}` : '—';
-        const appVer = p.app_version || '—';
+        const appVer = p.$app_version || '—';
         const time = new Date(ev.timestamp).toLocaleString();
         const label = ev.event.replace(/_/g, ' ');
         return `<tr>
