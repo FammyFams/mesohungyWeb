@@ -125,8 +125,10 @@ import Layout from "../layouts/Layout.astro";
 
   function renderBreakdown(events, prop, elementId) {
     const counts = {};
+    const props = Array.isArray(prop) ? prop : [prop];
     events.forEach(ev => {
-      const val = ev.properties?.[prop] || 'Unknown';
+      let val = 'Unknown';
+      for (const p of props) { if (ev.properties?.[p]) { val = ev.properties[p]; break; } }
       counts[val] = (counts[val] || 0) + 1;
     });
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
@@ -169,9 +171,9 @@ import Layout from "../layouts/Layout.astro";
 
       // Device & OS breakdowns from all events
       const all = [...opens, ...likes, ...skips, ...details];
-      renderBreakdown(all, '$os', 'os-breakdown');
-      renderBreakdown(all, '$device_brand', 'brand-breakdown');
-      renderBreakdown(all, '$device_model', 'model-breakdown');
+      renderBreakdown(all, ['os_name', '$os'], 'os-breakdown');
+      renderBreakdown(all, ['device_brand', '$device_manufacturer'], 'brand-breakdown');
+      renderBreakdown(all, ['device_model', '$device_name'], 'model-breakdown');
       renderBreakdown(all, '$device_type', 'type-breakdown');
 
       // Sort for recent events table
@@ -190,10 +192,12 @@ import Layout from "../layouts/Layout.astro";
         const rating = p.rating ? `⭐ ${p.rating}` : '—';
         const price = p.price_level || '—';
         const openNow = p.open_now === true ? '✅' : p.open_now === false ? '❌' : '—';
-        const os = [p.$os, p.$os_version].filter(Boolean).join(' ') || '—';
-        const device = [p.$device_brand, p.$device_model].filter(Boolean).join(' ') || (p.$device_type || '—');
-        const screen = p.$screen_width && p.$screen_height ? `${p.$screen_width}x${p.$screen_height}` : '—';
-        const appVer = p.$app_version || p.$app_build || '—';
+        const os = [p.os_name || p.$os, p.os_version || p.$os_version].filter(Boolean).join(' ') || '—';
+        const device = [p.device_brand || p.$device_manufacturer, p.device_model || p.$device_name].filter(Boolean).join(' ') || (p.$device_type || '—');
+        const screenW = Math.round(p.screen_width || p.$screen_width || 0);
+        const screenH = Math.round(p.screen_height || p.$screen_height || 0);
+        const screen = screenW && screenH ? `${screenW}x${screenH}` : '—';
+        const appVer = p.app_version || '—';
         const time = new Date(ev.timestamp).toLocaleString();
         const label = ev.event.replace(/_/g, ' ');
         return `<tr>
