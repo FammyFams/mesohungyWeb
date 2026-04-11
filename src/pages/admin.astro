@@ -98,6 +98,10 @@ import Layout from "../layouts/Layout.astro";
 
   const SUPABASE_URL = 'https://xyuefjlrozbyapjeajid.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5dWVmamxyb3pieWFwamVhamlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3Nzk5NDAsImV4cCI6MjA5MTM1NTk0MH0.bGzWc4Uxa-FfnpK5gsnWP7JxMB7bt01l1HYZfFafEaE';
+  const EVENT_TYPES = ['app_opened', 'restaurant_liked', 'restaurant_skipped', 'detail_viewed'] as const;
+  const STAT_IDS = ['total-opens', 'total-likes', 'total-skips', 'total-details'] as const;
+  const COL_COUNT = 13;
+
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const gate = document.getElementById('login-gate')!;
@@ -107,21 +111,25 @@ import Layout from "../layouts/Layout.astro";
   const loginBtn = document.getElementById('login-btn')!;
   const logoutBtn = document.getElementById('logout-btn')!;
   const loginError = document.getElementById('login-error')!;
+  const loadMoreBtn = document.getElementById('load-more-btn') as HTMLButtonElement;
 
-  // Check existing session
   const { data: { session } } = await supabase.auth.getSession();
-  if (session) {
-    gate.style.display = 'none';
-    dash.style.display = 'block';
-    loadData();
-  }
+  if (session) showDashboard();
 
   loginBtn.addEventListener('click', tryLogin);
+  emailInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLogin(); });
   pwInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLogin(); });
   logoutBtn.addEventListener('click', async () => {
     await supabase.auth.signOut();
     window.location.href = '/';
   });
+  loadMoreBtn.addEventListener('click', loadMore);
+
+  function showDashboard() {
+    gate.style.display = 'none';
+    dash.style.display = 'block';
+    loadData();
+  }
 
   async function tryLogin() {
     loginError.textContent = '';
@@ -134,27 +142,31 @@ import Layout from "../layouts/Layout.astro";
       pwInput.value = '';
       return;
     }
-    gate.style.display = 'none';
-    dash.style.display = 'block';
-    loadData();
+    showDashboard();
+  }
+
+  function esc(str: string): string {
+    const el = document.createElement('span');
+    el.textContent = str;
+    return el.innerHTML;
   }
 
   function renderBreakdown(events: any[], prop: string | string[], elementId: string) {
     const counts: Record<string, number> = {};
     const props = Array.isArray(prop) ? prop : [prop];
-    events.forEach(ev => {
+    for (const ev of events) {
       let val = 'Unknown';
-      for (const p of props) { if (ev.properties?.[p]) { val = ev.properties[p]; break; } }
+      for (const p of props) { if (ev.properties?.[p]) { val = String(ev.properties[p]); break; } }
       counts[val] = (counts[val] || 0) + 1;
-    });
+    }
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-    const total = events.length;
     const el = document.getElementById(elementId)!;
     if (sorted.length === 0) { el.textContent = 'No data'; return; }
+    const total = events.length;
     el.innerHTML = sorted.map(([name, count]) => {
       const pct = total ? Math.round(count / total * 100) : 0;
       return `<div class="breakdown-row">
-        <span class="breakdown-name">${name}</span>
+        <span class="breakdown-name">${esc(name)}</span>
         <div class="breakdown-bar-bg"><div class="breakdown-bar" style="width:${pct}%"></div></div>
         <span class="breakdown-count">${count} (${pct}%)</span>
       </div>`;
@@ -168,22 +180,18 @@ import Layout from "../layouts/Layout.astro";
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
-    const res = await fetch(
-      `${SUPABASE_URL}/functions/v1/posthog-proxy/events`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-          'apikey': SUPABASE_ANON_KEY,
-        },
-        body: JSON.stringify(nextUrl ? { nextUrl } : { event: eventName, limit }),
-      }
-    );
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/posthog-proxy/events`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(nextUrl ? { nextUrl } : { event: eventName, limit }),
+    });
 
     if (!res.ok) {
       const body = await res.text();
-      console.error(`Edge Function error (${res.status}):`, body);
       throw new Error(`Failed to fetch ${eventName}: ${res.status} — ${body}`);
     }
 
@@ -193,109 +201,100 @@ import Layout from "../layouts/Layout.astro";
     return data.results || [];
   }
 
+  function updateStats() {
+    for (let i = 0; i < EVENT_TYPES.length; i++) {
+      const count = allEvents.filter(e => e.event === EVENT_TYPES[i]).length;
+      document.getElementById(STAT_IDS[i])!.textContent = String(count);
+    }
+  }
+
+  function updateBreakdowns() {
+    renderBreakdown(allEvents, ['os_name', '$os'], 'os-breakdown');
+    renderBreakdown(allEvents, ['device_brand', '$device_manufacturer'], 'brand-breakdown');
+    renderBreakdown(allEvents, ['device_model', '$device_name'], 'model-breakdown');
+    renderBreakdown(allEvents, '$device_type', 'type-breakdown');
+  }
+
+  function sortAndRender() {
+    allEvents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    renderEvents(allEvents);
+  }
+
   async function loadData() {
     try {
-      const [opens, likes, skips, details] = await Promise.all([
-        fetchEvents('app_opened'),
-        fetchEvents('restaurant_liked'),
-        fetchEvents('restaurant_skipped'),
-        fetchEvents('detail_viewed'),
-      ]);
-
-      document.getElementById('total-opens')!.textContent = String(opens.length);
-      document.getElementById('total-likes')!.textContent = String(likes.length);
-      document.getElementById('total-skips')!.textContent = String(skips.length);
-      document.getElementById('total-details')!.textContent = String(details.length);
-
-      allEvents = [...opens, ...likes, ...skips, ...details];
-      renderBreakdown(allEvents, ['os_name', '$os'], 'os-breakdown');
-      renderBreakdown(allEvents, ['device_brand', '$device_manufacturer'], 'brand-breakdown');
-      renderBreakdown(allEvents, ['device_model', '$device_name'], 'model-breakdown');
-      renderBreakdown(allEvents, '$device_type', 'type-breakdown');
-
-      allEvents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      renderEvents(allEvents);
-
+      const results = await Promise.all(EVENT_TYPES.map(e => fetchEvents(e)));
+      allEvents = results.flat();
+      updateStats();
+      updateBreakdowns();
+      sortAndRender();
     } catch (err: any) {
-      console.error('PostHog fetch error:', err);
       document.getElementById('events-body')!.innerHTML =
-        `<tr><td colspan="13" class="loading">Error loading data: ${err.message}</td></tr>`;
+        `<tr><td colspan="${COL_COUNT}" class="loading">Error loading data: ${esc(err.message)}</td></tr>`;
     }
   }
 
   function renderEvents(events: any[]) {
     const tbody = document.getElementById('events-body')!;
     if (events.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="13" class="loading">No events yet</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="${COL_COUNT}" class="loading">No events yet</td></tr>`;
       return;
     }
     tbody.innerHTML = events.map(ev => {
       const p = ev.properties || {};
       const time = new Date(ev.timestamp).toLocaleString();
       const label = ev.event.replace(/_/g, ' ');
-      const name = p.name || '—';
-      const rating = p.rating ? `⭐ ${p.rating}` : '—';
-      const price = p.price_level || '—';
-      const openNow = p.open_now === true ? '✅' : p.open_now === false ? '❌' : '—';
-      const os = [p.os_name || p.$os, p.os_version || p.$os_version].filter(Boolean).join(' ') || '—';
-      const device = [p.device_brand || p.$device_manufacturer, p.device_model || p.$device_name].filter(Boolean).join(' ') || (p.$device_type || '—');
+      const name = p.name || '\u2014';
+      const rating = p.rating ? `\u2B50 ${esc(String(p.rating))}` : '\u2014';
+      const price = p.price_level || '\u2014';
+      const openNow = p.open_now === true ? '\u2705' : p.open_now === false ? '\u274C' : '\u2014';
+      const os = [p.os_name || p.$os, p.os_version || p.$os_version].filter(Boolean).join(' ') || '\u2014';
+      const device = [p.device_brand || p.$device_manufacturer, p.device_model || p.$device_name].filter(Boolean).join(' ') || (p.$device_type || '\u2014');
       const screenW = Math.round(p.screen_width || p.$screen_width || 0);
       const screenH = Math.round(p.screen_height || p.$screen_height || 0);
-      const screen = screenW && screenH ? `${screenW}x${screenH}` : '—';
-      const appVer = p.$app_version || '—';
+      const screen = screenW && screenH ? `${screenW}x${screenH}` : '\u2014';
+      const appVer = p.$app_version || '\u2014';
       const city = p.$geoip_city_name || '';
       const region = p.$geoip_subdivision_1_name || '';
-      const location = [city, region].filter(Boolean).join(', ') || '—';
-      const physical = p.is_physical_device === true ? 'Yes' : p.is_physical_device === false ? 'Emulator' : '—';
-      const tags = p.tags || '—';
+      const location = [city, region].filter(Boolean).join(', ') || '\u2014';
+      const physical = p.is_physical_device === true ? 'Yes' : p.is_physical_device === false ? 'Emulator' : '\u2014';
+      const tags = p.tags || '\u2014';
       return `<tr>
-        <td>${time}</td>
-        <td><span class="event-badge">${label}</span></td>
-        <td>${name}</td>
+        <td>${esc(time)}</td>
+        <td><span class="event-badge">${esc(label)}</span></td>
+        <td>${esc(String(name))}</td>
         <td>${rating}</td>
-        <td>${price}</td>
+        <td>${esc(String(price))}</td>
         <td>${openNow}</td>
-        <td>${os}</td>
-        <td>${device}</td>
+        <td>${esc(os)}</td>
+        <td>${esc(device)}</td>
         <td>${screen}</td>
-        <td>${appVer}</td>
-        <td>${location}</td>
+        <td>${esc(String(appVer))}</td>
+        <td>${esc(location)}</td>
         <td>${physical}</td>
-        <td>${tags}</td>
+        <td>${esc(String(tags))}</td>
       </tr>`;
     }).join('');
   }
 
   async function loadMore() {
-    const btn = document.getElementById('load-more-btn') as HTMLButtonElement;
-    btn.textContent = 'Loading...';
-    btn.disabled = true;
+    loadMoreBtn.textContent = 'Loading...';
+    loadMoreBtn.disabled = true;
     try {
-      const eventTypes = ['app_opened', 'restaurant_liked', 'restaurant_skipped', 'detail_viewed'];
-      const fetches = eventTypes
+      const fetches = EVENT_TYPES
         .filter(e => nextUrls[e])
         .map(e => fetchEvents(e, 100, nextUrls[e]));
       const results = await Promise.all(fetches);
-      const newEvents = results.flat();
-      allEvents = [...allEvents, ...newEvents];
-      allEvents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      renderEvents(allEvents);
-      document.getElementById('total-opens')!.textContent = String(allEvents.filter(e => e.event === 'app_opened').length);
-      document.getElementById('total-likes')!.textContent = String(allEvents.filter(e => e.event === 'restaurant_liked').length);
-      document.getElementById('total-skips')!.textContent = String(allEvents.filter(e => e.event === 'restaurant_skipped').length);
-      document.getElementById('total-details')!.textContent = String(allEvents.filter(e => e.event === 'detail_viewed').length);
-    } catch (err) {
-      console.error('Load more error:', err);
-    }
-    btn.textContent = 'Load More';
-    btn.disabled = false;
+      allEvents = [...allEvents, ...results.flat()];
+      updateStats();
+      sortAndRender();
+    } catch (_) { /* already visible in table */ }
+    loadMoreBtn.textContent = 'Load More';
+    loadMoreBtn.disabled = false;
     if (Object.keys(nextUrls).length === 0) {
-      btn.textContent = 'All loaded';
-      btn.disabled = true;
+      loadMoreBtn.textContent = 'All loaded';
+      loadMoreBtn.disabled = true;
     }
   }
-
-  document.getElementById('load-more-btn')!.addEventListener('click', loadMore);
 </script>
 
 <style>
