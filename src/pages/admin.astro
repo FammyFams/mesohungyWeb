@@ -72,13 +72,13 @@ import Layout from "../layouts/Layout.astro";
               <th>Rating</th>
               <th>Price</th>
               <th>Open</th>
-              <th>OS</th>
               <th>Device</th>
               <th>Screen</th>
               <th>App Ver</th>
               <th>Location</th>
               <th>Physical</th>
               <th>Tags</th>
+              <th>OS</th>
             </tr>
           </thead>
           <tbody id="events-body">
@@ -265,13 +265,13 @@ import Layout from "../layouts/Layout.astro";
         <td>${rating}</td>
         <td>${esc(String(price))}</td>
         <td>${openNow}</td>
-        <td>${esc(os)}</td>
         <td>${esc(device)}</td>
         <td>${screen}</td>
         <td>${esc(String(appVer))}</td>
         <td>${esc(location)}</td>
         <td>${physical}</td>
         <td>${esc(String(tags))}</td>
+        <td>${esc(os)}</td>
       </tr>`;
     }).join('');
   }
