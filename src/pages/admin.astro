@@ -68,6 +68,7 @@ import Layout from "../layouts/Layout.astro";
             <tr>
               <th>Time</th>
               <th>Event</th>
+              <th>User</th>
               <th>Restaurant</th>
               <th>Rating</th>
               <th>Price</th>
@@ -82,7 +83,7 @@ import Layout from "../layouts/Layout.astro";
             </tr>
           </thead>
           <tbody id="events-body">
-            <tr><td colspan="13" class="loading">Loading...</td></tr>
+            <tr><td colspan="14" class="loading">Loading...</td></tr>
           </tbody>
         </table>
       </div>
@@ -100,7 +101,7 @@ import Layout from "../layouts/Layout.astro";
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5dWVmamxyb3pieWFwamVhamlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3Nzk5NDAsImV4cCI6MjA5MTM1NTk0MH0.bGzWc4Uxa-FfnpK5gsnWP7JxMB7bt01l1HYZfFafEaE';
   const EVENT_TYPES = ['app_opened', 'restaurant_liked', 'restaurant_skipped', 'detail_viewed'] as const;
   const STAT_IDS = ['total-opens', 'total-likes', 'total-skips', 'total-details'] as const;
-  const COL_COUNT = 13;
+  const COL_COUNT = 14;
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -175,6 +176,11 @@ import Layout from "../layouts/Layout.astro";
 
   let allEvents: any[] = [];
   let nextUrls: Record<string, string> = {};
+  // distinct_id → display_name. PostHog identify() sets display_name on the
+  // Person record; the events endpoint only returns event properties, so we
+  // fetch persons separately and join client-side. Empty map until loadData
+  // populates it; renderEvents falls back to '—' for unknown ids.
+  const personByDistinctId: Map<string, string> = new Map();
 
   async function fetchEvents(eventName: string, limit = 100, nextUrl: string | null = null) {
     const { data: { session } } = await supabase.auth.getSession();
@@ -201,6 +207,31 @@ import Layout from "../layouts/Layout.astro";
     return data.results || [];
   }
 
+  async function fetchPersons() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/posthog-proxy/persons`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ limit: 500 }),
+    });
+
+    if (!res.ok) return; // soft-fail: events still render, User col just shows '—'
+    const data = await res.json();
+    for (const p of data.results || []) {
+      const name = p.properties?.display_name;
+      if (!name) continue;
+      for (const did of p.distinct_ids || []) {
+        personByDistinctId.set(did, String(name));
+      }
+    }
+  }
+
   function updateStats() {
     for (let i = 0; i < EVENT_TYPES.length; i++) {
       const count = allEvents.filter(e => e.event === EVENT_TYPES[i]).length;
@@ -222,7 +253,13 @@ import Layout from "../layouts/Layout.astro";
 
   async function loadData() {
     try {
-      const results = await Promise.all(EVENT_TYPES.map(e => fetchEvents(e)));
+      // Fetch persons in parallel with events. Persons populates
+      // personByDistinctId so renderEvents can look up display_name.
+      // fetchPersons soft-fails so a persons-API blip doesn't blank the table.
+      const [results] = await Promise.all([
+        Promise.all(EVENT_TYPES.map(e => fetchEvents(e))),
+        fetchPersons(),
+      ]);
       allEvents = results.flat();
       updateStats();
       updateBreakdowns();
@@ -243,6 +280,7 @@ import Layout from "../layouts/Layout.astro";
       const p = ev.properties || {};
       const time = new Date(ev.timestamp).toLocaleString();
       const label = ev.event.replace(/_/g, ' ');
+      const user = personByDistinctId.get(ev.distinct_id) || '\u2014';
       const name = p.name || '\u2014';
       const rating = p.rating ? `\u2B50 ${esc(String(p.rating))}` : '\u2014';
       const price = p.price_level || '\u2014';
@@ -261,6 +299,7 @@ import Layout from "../layouts/Layout.astro";
       return `<tr>
         <td>${esc(time)}</td>
         <td><span class="event-badge">${esc(label)}</span></td>
+        <td>${esc(user)}</td>
         <td>${esc(String(name))}</td>
         <td>${rating}</td>
         <td>${esc(String(price))}</td>
